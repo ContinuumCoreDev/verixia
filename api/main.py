@@ -67,3 +67,14 @@ async def root():
         "verify":  "POST /v1/verify",
         "stats":   "GET /v1/stats",
     }
+
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/static", StaticFiles(directory="api/static"), name="static")
+
+
+@app.get("/ui", include_in_schema=False)
+async def ui():
+    return FileResponse("api/static/index.html")

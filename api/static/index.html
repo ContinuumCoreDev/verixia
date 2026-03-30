@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probatum — AI Outputs, Proven.</title>
+<style>
+  :root {
+    --navy:   #0D1B3E;
+    --gold:   #9A7B2E;
+    --light:  #EEF1F8;
+    --white:  #FFFFFF;
+    --text:   #1A1A2E;
+    --muted:  #6B7280;
+    --border: #D1D5DB;
+    --green:  #059669;
+    --red:    #DC2626;
+    --amber:  #D97706;
+    --gray:   #9CA3AF;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: #F8F9FB;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--navy);
+    padding: 20px 40px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    border-bottom: 3px solid var(--gold);
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 2px;
+  }
+
+  header span {
+    font-size: 14px;
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 24px;
+  }
+
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--navy);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  textarea {
+    width: 100%;
+    height: 100px;
+    padding: 12px;
+    font-family: 'Georgia', serif;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+    outline: none;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  textarea:focus { border-color: var(--navy); }
+
+  .options {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .options label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .options input, .options select {
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    outline: none;
+    color: var(--text);
+    background: white;
+  }
+
+  .options input:focus,
+  .options select:focus { border-color: var(--navy); }
+
+  button#verify-btn {
+    background: var(--navy);
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+
+  button#verify-btn:hover { background: #1a2d5a; }
+  button#verify-btn:disabled {
+    background: var(--gray);
+    cursor: not-allowed;
+  }
+
+  .examples {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .example-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--light);
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+
+  .example-btn:hover {
+    border-color: var(--navy);
+    color: var(--navy);
+  }
+
+  #result { display: none; }
+
+  .score-block {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  .score-number {
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+    min-width: 100px;
+  }
+
+  .confidence-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .badge-HIGH       { background: #D1FAE5; color: #065F46; }
+  .badge-MEDIUM     { background: #FEF3C7; color: #92400E; }
+  .badge-LOW        { background: #FEE2E2; color: #991B1B; }
+  .badge-UNVERIFIABLE { background: #F3F4F6; color: #374151; }
+
+  .score-bar-wrap {
+    flex: 1;
+    background: var(--light);
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .score-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--muted);
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .meta-row span strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding: 4px 0;
+  }
+
+  .section-supports  { color: var(--green); border-bottom: 2px solid var(--green); }
+  .section-contradicts { color: var(--red); border-bottom: 2px solid var(--red); }
+  .section-audit     { color: var(--navy); border-bottom: 2px solid var(--navy); }
+
+  .citation {
+    background: var(--light);
+    border-left: 3px solid var(--green);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .citation.contra { border-left-color: var(--red); }
+
+  .citation-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .citation-meta span {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .citation-text { color: var(--text); }
+
+  .audit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .audit-item {
+    background: var(--light);
+    border-radius: 6px;
+    padding: 12px 16px;
+  }
+
+  .audit-item .audit-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .audit-item .audit-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--navy);
+    font-family: 'Courier New', monospace;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--light);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-card .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--navy);
+    font-family: 'Courier New', monospace;
+  }
+
+  .stat-card .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    background: #FEE2E2;
+    border: 1px solid #FECACA;
+    color: #991B1B;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  .claim-display {
+    font-size: 16px;
+    font-style: italic;
+    color: var(--muted);
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border-left: 3px solid var(--gold);
+    background: var(--light);
+    border-radius: 0 6px 6px 0;
+    line-height: 1.6;
+  }
+
+  .none-msg {
+    color: var(--muted);
+    font-size: 13px;
+    font-style: italic;
+    padding: 8px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PROBATUM</h1>
+  <span>AI outputs, proven.</span>
+</header>
+
+<div class="container">
+
+  <!-- Input Card -->
+  <div class="card">
+    <div class="card-title">Verify a Claim</div>
+    <textarea id="claim-input"
+      placeholder="Enter a legal claim to verify against the knowledge graph..."></textarea>
+
+    <div class="options">
+      <div>
+        <label>Domain</label>
+        <select id="domain">
+          <option value="">Any</option>
+          <option value="case_law">Case Law</option>
+          <option value="statute">Statute</option>
+          <option value="regulation">Regulation</option>
+        </select>
+      </div>
+      <div>
+        <label>As of date</label>
+        <input type="date" id="as-of-date" />
+      </div>
+      <div>
+        <label>Sources</label>
+        <input type="number" id="top-k" value="10" min="3" max="50"
+               style="width: 64px;" />
+      </div>
+    </div>
+
+    <button id="verify-btn" onclick="runVerify()">Verify</button>
+
+    <div class="examples">
+      <span style="font-size:12px;color:var(--muted);align-self:center;">Examples:</span>
+      <button class="example-btn"
+        onclick="setExample('The Supreme Court established the principle of judicial review in Marbury v. Madison.')">
+        Judicial review
+      </button>
+      <button class="example-btn"
+        onclick="setExample('Congress has unlimited power to expand its own jurisdiction.')">
+        Congressional power
+      </button>
+      <button class="example-btn"
+        onclick="setExample('The Constitution requires a jury trial for all federal criminal prosecutions.')">
+        Jury trial right
+      </button>
+    </div>
+  </div>
+
+  <!-- Result Card -->
+  <div class="card" id="result">
+    <div class="card-title">Verification Result</div>
+
+    <div class="claim-display" id="result-claim"></div>
+
+    <!-- Score -->
+    <div class="score-block">
+      <div class="score-number" id="result-score">—</div>
+      <div style="flex:1">
+        <div id="result-badge" class="confidence-badge">—</div>
+        <div class="score-bar-wrap">
+          <div class="score-bar" id="result-bar" style="width:0%;background:#9CA3AF;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta -->
+    <div class="meta-row" id="result-meta"></div>
+
+    <!-- Citations -->
+    <div id="citations-section">
+      <div class="section-label section-supports">Supporting Evidence</div>
+      <div id="citations-list"></div>
+    </div>
+
+    <div id="contradictions-section" style="margin-top:20px;">
+      <div class="section-label section-contradicts">Contradicting Evidence</div>
+      <div id="contradictions-list"></div>
+    </div>
+
+    <!-- Audit Trail -->
+    <div style="margin-top:20px;">
+      <div class="section-label section-audit">Audit Trail</div>
+      <div class="audit-grid" id="audit-grid"></div>
+    </div>
+  </div>
+
+  <!-- Stats Card -->
+  <div class="card" id="stats-card">
+    <div class="card-title">Knowledge Graph Status</div>
+    <div class="stats-grid" id="stats-grid">
+      <div style="color:var(--muted);font-size:13px;">Loading...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8790';
+
+function setExample(text) {
+  document.getElementById('claim-input').value = text;
+}
+
+function scoreColor(score) {
+  if (score >= 0.80) return '#059669';
+  if (score >= 0.55) return '#D97706';
+  if (score >= 0.30) return '#DC2626';
+  return '#9CA3AF';
+}
+
+function renderCitation(c, contra = false) {
+  return `
+    <div class="citation ${contra ? 'contra' : ''}">
+      <div class="citation-meta">
+        <span>${c.doc_id}</span>
+        <span>${c.source}</span>
+        <span>${c.doc_type}</span>
+        ${c.published_date ? `<span>${c.published_date}</span>` : ''}
+        <span>score: ${c.stance_score.toFixed(4)}</span>
+        ${c.section_label ? `<span>${c.section_label}</span>` : ''}
+      </div>
+      <div class="citation-text">${c.text_excerpt}</div>
+    </div>`;
+}
+
+async function runVerify() {
+  const claim = document.getElementById('claim-input').value.trim();
+  if (!claim) return;
+
+  const domain    = document.getElementById('domain').value || null;
+  const asOfDate  = document.getElementById('as-of-date').value || null;
+  const topK      = parseInt(document.getElementById('top-k').value) || 10;
+
+  const btn = document.getElementById('verify-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Verifying...';
+
+  document.getElementById('result').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/v1/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        claim, domain, as_of_date: asOfDate, top_k: topK, store: true
+      })
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // Populate result
+    document.getElementById('result-claim').textContent = `"${data.claim}"`;
+
+    const score = (data.score * 100).toFixed(1);
+    document.getElementById('result-score').textContent = `${score}%`;
+
+    const badge = document.getElementById('result-badge');
+    badge.textContent = data.confidence;
+    badge.className = `confidence-badge badge-${data.confidence}`;
+
+    const bar = document.getElementById('result-bar');
+    bar.style.width = `${score}%`;
+    bar.style.background = scoreColor(data.score);
+
+    // Meta
+    document.getElementById('result-meta').innerHTML = `
+      <span>Claim ID: <strong>${data.claim_id.slice(0,8)}...</strong></span>
+      <span>Chunks evaluated: <strong>${data.chunks_evaluated}</strong></span>
+      <span>Supporting: <strong>${data.supporting_count}</strong></span>
+      <span>Contradicting: <strong>${data.contradicting_count}</strong></span>
+      <span>Neutral: <strong>${data.neutral_count}</strong></span>
+      ${data.as_of_date ? `<span>As of: <strong>${data.as_of_date}</strong></span>` : ''}
+    `;
+
+    // Citations
+    const citList = document.getElementById('citations-list');
+    citList.innerHTML = data.citations.length
+      ? data.citations.map(c => renderCitation(c)).join('')
+      : '<div class="none-msg">No supporting evidence found.</div>';
+
+    const conList = document.getElementById('contradictions-list');
+    conList.innerHTML = data.contradictions.length
+      ? data.contradictions.map(c => renderCitation(c, true)).join('')
+      : '<div class="none-msg">No contradicting evidence found.</div>';
+
+    // Audit trail
+    const at = data.audit_trail;
+    document.getElementById('audit-grid').innerHTML = `
+      <div class="audit-item">
+        <div class="audit-label">Claim ID</div>
+        <div class="audit-value" style="font-size:13px;">${data.claim_id}</div>
+      </div>
+      <div class="audit-item">
+        <div class="audit-label">Graph Version</div>
+        <div class="audit-value">${at.graph_version}</div>
+      </div>
+      <div class="audit-item">
+        <div class="audit-label">Sources Queried</div>
+        <div class="audit-value">${at.sources_queried}</div>
+      </div>
+      <div class="audit-item">
+        <div class="audit-label">Temporal Filter</div>
+        <div class="audit-value">${at.temporal_filter}</div>
+      </div>
+      <div class="audit-item">
+        <div class="audit-label">Coverage Note</div>
+        <div class="audit-value" style="font-size:12px;">${data.graph_coverage_note}</div>
+      </div>
+    `;
+
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+
+    // Refresh stats
+    loadStats();
+
+  } catch (e) {
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').innerHTML =
+      `<div class="error-msg">Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Verify';
+  }
+}
+
+async function loadStats() {
+  try {
+    const res  = await fetch(`${API}/v1/stats`);
+    const data = await res.json();
+    const r    = data.registry;
+    const c    = data.collection;
+
+    document.getElementById('stats-grid').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-value">${c.points_count || 0}</div>
+        <div class="stat-label">Knowledge chunks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${r.total_claims || 0}</div>
+        <div class="stat-label">Claims verified</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${r.total_events || 0}</div>
+        <div class="stat-label">Score events</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${r.by_confidence?.HIGH || 0}</div>
+        <div class="stat-label">High confidence</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${c.status || '—'}</div>
+        <div class="stat-label">Graph status</div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('stats-grid').innerHTML =
+      '<div style="color:var(--muted);font-size:13px;">Could not load stats.</div>';
+  }
+}
+
+// Allow Enter key (Ctrl+Enter) to submit
+document.addEventListener('DOMContentLoaded', () => {
+  loadStats();
+  document.getElementById('claim-input').addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') runVerify();
+  });
+});
+</script>
+</body>
+</html>
