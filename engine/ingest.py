@@ -34,8 +34,10 @@ _cfg_path = Path(__file__).parent.parent / "config" / "config.yaml"
 with open(_cfg_path) as f:
     _cfg = yaml.safe_load(f)
 
-QDRANT_HOST     = _cfg["qdrant"]["host"]
-QDRANT_PORT     = _cfg["qdrant"]["port"]
+import os
+QDRANT_HOST     = os.environ.get("QDRANT_HOST", _cfg["qdrant"]["host"])
+QDRANT_PORT     = int(os.environ.get("QDRANT_PORT", _cfg["qdrant"]["port"]))
+QDRANT_API_KEY  = os.environ.get("QDRANT_API_KEY", None)
 COLLECTION      = _cfg["qdrant"]["collection"]
 EMBEDDING_MODEL = _cfg["embedding"]["model"]
 EMBEDDING_DEV   = _cfg["embedding"]["device"]
@@ -49,8 +51,18 @@ _model  = None
 def _get_client() -> QdrantClient:
     global _client
     if _client is None:
-        _client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=30)
-        logger.info(f"Qdrant connected: {QDRANT_HOST}:{QDRANT_PORT}")
+        if QDRANT_API_KEY:
+            _client = QdrantClient(
+                host    = QDRANT_HOST,
+                port    = QDRANT_PORT,
+                api_key = QDRANT_API_KEY,
+                https   = True,
+                timeout = 30,
+            )
+            logger.info(f"Qdrant connected (cloud): {QDRANT_HOST}")
+        else:
+            _client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=30)
+            logger.info(f"Qdrant connected (local): {QDRANT_HOST}:{QDRANT_PORT}")
     return _client
 
 

@@ -1,0 +1,11 @@
+fastapi
+mangum
+qdrant-client
+sentence-transformers
+transformers
+torch
+pyyaml
+requests
+spacy
+pdfplumber
+beautifulsoup4
