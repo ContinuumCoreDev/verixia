@@ -121,6 +121,11 @@ def run_pipeline(
 
             if doc and doc.get("parse_status") == "ok":
                 doc["doc_type"] = classify_document(doc)
+
+            # Route through type-specific ingestor
+            from ingestors.generic_ingestor import get_ingestor
+            ingestor = get_ingestor(doc["doc_type"])
+            doc = ingestor.ingest(doc)
                 chunks = chunk_document(doc)
                 if chunks and not dry_run:
                     ingested = ingest_chunks(chunks)
@@ -189,6 +194,11 @@ def run_pipeline(
 
             # Classify
             doc["doc_type"] = classify_document(doc)
+
+            # Route through type-specific ingestor
+            from ingestors.generic_ingestor import get_ingestor
+            ingestor = get_ingestor(doc["doc_type"])
+            doc = ingestor.ingest(doc)
 
             # Chunk
             chunks = chunk_document(doc)
