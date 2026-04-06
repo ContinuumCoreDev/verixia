@@ -1,5 +1,5 @@
 """
-Probatum — AWS Lambda Handler
+Verixia — AWS Lambda Handler
 Lightweight version using HuggingFace Inference API
 for model calls instead of loading models locally.
 Local deployment uses full models — Lambda uses API calls.

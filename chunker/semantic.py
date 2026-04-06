@@ -1,5 +1,5 @@
 """
-Probatum — Semantic Boundary Detector
+Verixia — Semantic Boundary Detector
 Layer 2 of the multi-layer chunking system.
 Uses sentence embeddings and cosine similarity to detect
 topic shifts between adjacent sentences.

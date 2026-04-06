@@ -1,5 +1,5 @@
 """
-Probatum — Legal Citation Pattern Library
+Verixia — Legal Citation Pattern Library
 Regex patterns for extracting citations from legal documents.
 Organized by document type.
 """

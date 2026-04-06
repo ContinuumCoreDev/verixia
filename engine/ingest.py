@@ -1,5 +1,5 @@
 """
-Probatum — Qdrant Ingest Layer
+Verixia — Qdrant Ingest Layer
 Takes chunked documents and upserts them into the
 Qdrant vector store with full metadata payloads.
 Handles collection creation, embedding, and upsert.
@@ -93,7 +93,7 @@ def _date_to_ts(date_str: Optional[str]) -> Optional[float]:
 
 def ensure_collection():
     """
-    Create the Probatum collection if it doesn't exist.
+    Create the Verixia collection if it doesn't exist.
     Sets up vector config and payload indexes for
     efficient filtered retrieval.
     """

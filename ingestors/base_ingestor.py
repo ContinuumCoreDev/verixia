@@ -1,7 +1,7 @@
 """
-Probatum — Base Ingestor
+Verixia — Base Ingestor
 Abstract base class that all type-specific ingestors inherit from.
-Defines the contract: every ingestor receives a raw Probatum document
+Defines the contract: every ingestor receives a raw Verixia document
 and returns a normalized document with full text and metadata.
 Output schema is identical across all ingestors.
 """
@@ -23,7 +23,7 @@ class BaseIngestor(ABC):
 
     def ingest(self, doc: dict) -> dict:
         """
-        Main entry point. Receives a raw Probatum document,
+        Main entry point. Receives a raw Verixia document,
         enriches it with extracted text and metadata,
         returns normalized document ready for chunking.
         """

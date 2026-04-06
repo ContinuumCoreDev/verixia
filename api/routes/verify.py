@@ -1,5 +1,5 @@
 """
-Probatum — Verification API Routes
+Verixia — Verification API Routes
 POST /v1/verify  — verify a claim against the knowledge graph
 GET  /v1/claims/{claim_id}  — retrieve a stored verification
 GET  /v1/stats  — registry and collection statistics
@@ -80,7 +80,7 @@ class StatsResponse(BaseModel):
 @router.post("/verify", response_model=VerifyResponse)
 async def verify_claim(request: VerifyRequest):
     """
-    Verify a claim against the Probatum knowledge graph.
+    Verify a claim against the Verixia knowledge graph.
 
     Returns a confidence score, full citation chain,
     contradicting evidence, and audit trail.

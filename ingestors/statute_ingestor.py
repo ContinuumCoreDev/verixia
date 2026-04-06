@@ -1,5 +1,5 @@
 """
-Probatum — Statute Ingestor
+Verixia — Statute Ingestor
 Specialized ingestor for federal statutes from Congress.gov.
 Tuned to the structure of US Code and bill text:
   - Section-based structure with § markers

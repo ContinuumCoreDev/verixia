@@ -1,5 +1,5 @@
 """
-Probatum — Citation Extractor
+Verixia — Citation Extractor
 Extracts citations from ingested documents and
 feeds new ones into the scrape queue.
 Handles both text-based extraction and
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def extract_from_doc(doc: dict) -> list[dict]:
     """
-    Extract all citations from a Probatum document.
+    Extract all citations from a Verixia document.
     Uses pre-parsed cites[] if available (CourtListener),
     falls back to regex extraction on raw_text.
 

@@ -1,5 +1,5 @@
 """
-Probatum — Generic Ingestor
+Verixia — Generic Ingestor
 Fallback ingestor for documents that couldn't be classified
 or don't match a known document type.
 
@@ -39,7 +39,7 @@ class GenericIngestor(BaseIngestor):
             "plain_text", "html_with_citations", "html",
             "html_lawbox", "xml_harvard", "text", "body",
             "content", "abstract", "summary", "fullTextXml",
-            "_probatum_full_text",
+            "_verixia_full_text",
         ]
 
         for field in text_fields:

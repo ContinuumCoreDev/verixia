@@ -1,5 +1,5 @@
 """
-Probatum — Stance Classifier
+Verixia — Stance Classifier
 Two-pass stance detection optimized for legal text.
 
 Key insight from testing:

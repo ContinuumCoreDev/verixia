@@ -1,5 +1,5 @@
 """
-Probatum — Regulation Ingestor
+Verixia — Regulation Ingestor
 Specialized ingestor for federal regulations from regulations.gov.
 Tuned to the structure of CFR documents and Federal Register notices:
   - Agency identification

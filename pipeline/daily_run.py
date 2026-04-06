@@ -1,17 +1,6 @@
 """
-Probatum — Daily Pipeline Runner
+Verixia — Daily Pipeline Runner
 Orchestrates the full document procurement and ingest cycle.
-Run manually or triggered by n8n scheduler.
-
-Pipeline:
-  1. Process citation scrape queue (highest priority first)
-  2. Fetch new documents from all three sources
-  3. Resolve full text for each document
-  4. Classify document type
-  5. Chunk each document
-  6. Ingest chunks into Qdrant
-  7. Extract citations and feed back into queue
-  8. Write daily journal entry
 """
 
 import logging
@@ -32,7 +21,7 @@ logging.basicConfig(
     format  = "%(asctime)s %(levelname)s %(name)s — %(message)s",
     datefmt = "%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("probatum.pipeline")
+logger = logging.getLogger("verixia.pipeline")
 
 
 def run_pipeline(
@@ -40,22 +29,11 @@ def run_pipeline(
     queue_batch_size: int = 20,
     dry_run: bool = False,
 ) -> dict:
-    """
-    Run the full daily pipeline.
 
-    Args:
-        fetch_queries   List of {source, query, kwargs} dicts for new fetches
-                        Defaults to a standard daily set if None
-        queue_batch_size  Citations to process from scrape queue per run
-        dry_run         If True, fetch and chunk but do not ingest or update queue
-
-    Returns:
-        Journal entry dict with run statistics
-    """
-    from procurement.courtlistener  import fetch_opinions_by_query
-    from procurement.congress_gov   import fetch_statutes_by_query
+    from procurement.courtlistener   import fetch_opinions_by_query
+    from procurement.congress_gov    import fetch_statutes_by_query
     from procurement.regulations_gov import fetch_regulations_by_query
-    from procurement.resolver        import resolve_full_text
+    from procurement.resolver        import resolve_full_text, resolve_from_opinion_id
     from classifier.classifier       import classify_document
     from chunker.chunker             import chunk_document
     from engine.ingest               import ingest_chunks, collection_stats
@@ -63,9 +41,10 @@ def run_pipeline(
     from citation.queue_manager      import (initialize_queue, process_citations,
                                              get_next_batch, mark_fetched,
                                              mark_failed, queue_stats)
+    from ingestors.generic_ingestor  import get_ingestor
 
     start_time = datetime.now(timezone.utc)
-    logger.info(f"=== Probatum Daily Pipeline — {start_time.strftime('%Y-%m-%d')} ===")
+    logger.info(f"=== Verixia Daily Pipeline — {start_time.strftime('%Y-%m-%d')} ===")
 
     initialize_queue()
 
@@ -82,7 +61,6 @@ def run_pipeline(
         "errors":           [],
     }
 
-    # ── Default daily fetch queries ───────────────────────────
     if fetch_queries is None:
         fetch_queries = [
             {
@@ -116,32 +94,27 @@ def run_pipeline(
             doc = None
 
             if cite["resolution"] == "courtlistener_id" and cite["cl_opinion_id"]:
-                from procurement.resolver import resolve_from_opinion_id
                 doc = resolve_from_opinion_id(cite["cl_opinion_id"])
 
             if doc and doc.get("parse_status") == "ok":
                 doc["doc_type"] = classify_document(doc)
-
-            # Route through type-specific ingestor
-            from ingestors.generic_ingestor import get_ingestor
-            ingestor = get_ingestor(doc["doc_type"])
-            doc = ingestor.ingest(doc)
+                ingestor = get_ingestor(doc["doc_type"])
+                doc = ingestor.ingest(doc)
                 chunks = chunk_document(doc)
+
                 if chunks and not dry_run:
                     ingested = ingest_chunks(chunks)
                     stats["chunks_ingested"] += ingested
                     citations = extract_from_doc(doc)
                     process_citations(citations)
-                    stats["citations_found"]  += len(citations)
+                    stats["citations_found"] += len(citations)
                     mark_fetched(cite["normalized"], doc["doc_id"])
+
                 stats["queue_processed"] += 1
                 stats["docs_resolved"]   += 1
             else:
                 if not dry_run:
-                    mark_failed(
-                        cite["normalized"],
-                        "no text or fetch failed"
-                    )
+                    mark_failed(cite["normalized"], "no text or fetch failed")
 
         except Exception as e:
             err = f"Queue item {cite['normalized'][:40]}: {e}"
@@ -182,7 +155,6 @@ def run_pipeline(
 
     for doc in all_docs:
         try:
-            # Resolve full text if not already present
             if len(doc.get("raw_text", "")) < 500:
                 doc = resolve_full_text(doc)
 
@@ -192,25 +164,18 @@ def run_pipeline(
 
             stats["docs_resolved"] += 1
 
-            # Classify
             doc["doc_type"] = classify_document(doc)
-
-            # Route through type-specific ingestor
-            from ingestors.generic_ingestor import get_ingestor
             ingestor = get_ingestor(doc["doc_type"])
             doc = ingestor.ingest(doc)
-
-            # Chunk
             chunks = chunk_document(doc)
+
             if not chunks:
                 continue
 
-            # Ingest
             if not dry_run:
                 ingested = ingest_chunks(chunks)
                 stats["chunks_ingested"] += ingested
 
-            # Extract citations
             citations = extract_from_doc(doc)
             stats["citations_found"] += len(citations)
 
@@ -245,7 +210,6 @@ def run_pipeline(
     elapsed = (datetime.now(timezone.utc) - start_time).seconds
     stats["elapsed_seconds"] = elapsed
 
-    # ── Step 5: Write journal entry ───────────────────────────
     if not dry_run:
         _write_journal(stats)
 
@@ -268,7 +232,7 @@ def _write_journal(stats: dict):
     path     = JOURNAL_DIR / f"{date_str}.md"
 
     lines = [
-        f"# Probatum Pipeline Journal — {date_str}",
+        f"# Verixia Pipeline Journal — {date_str}",
         f"",
         f"## Run Statistics",
         f"",
@@ -287,10 +251,7 @@ def _write_journal(stats: dict):
     ]
 
     if stats.get("errors"):
-        lines += [
-            f"## Errors ({len(stats['errors'])})",
-            f"",
-        ]
+        lines += [f"## Errors ({len(stats['errors'])})", f""]
         for err in stats["errors"]:
             lines.append(f"- {err}")
         lines.append("")
@@ -303,7 +264,7 @@ def _write_journal(stats: dict):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Probatum daily pipeline")
+    parser = argparse.ArgumentParser(description="Verixia daily pipeline")
     parser.add_argument("--dry-run", action="store_true",
                         help="Fetch and chunk but do not ingest")
     parser.add_argument("--queue-only", action="store_true",

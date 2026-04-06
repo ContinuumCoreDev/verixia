@@ -1,5 +1,5 @@
 """
-Probatum — Multi-Layer Document Chunker
+Verixia — Multi-Layer Document Chunker
 The core proprietary component.
 
 Three layers working in sequence:
@@ -150,7 +150,7 @@ def _merge_sentences(
 
 def chunk_document(doc: dict) -> list[Chunk]:
     """
-    Chunk a Probatum document into semantically coherent pieces.
+    Chunk a Verixia document into semantically coherent pieces.
 
     Pipeline:
       1. Sentence segmentation (spaCy)
@@ -160,7 +160,7 @@ def chunk_document(doc: dict) -> list[Chunk]:
       5. Tag each chunk with metadata
 
     Args:
-        doc     Probatum document dict with raw_text, doc_id, doc_type, etc.
+        doc     Verixia document dict with raw_text, doc_id, doc_type, etc.
 
     Returns:
         List of Chunk objects ready for Qdrant ingest.

@@ -1,5 +1,5 @@
 """
-Probatum — FastAPI Application Entry Point
+Verixia — FastAPI Application Entry Point
 """
 
 import logging
@@ -27,10 +27,10 @@ for noisy in ["httpx", "httpcore", "sentence_transformers",
               "transformers", "torch"]:
     logging.getLogger(noisy).setLevel(logging.ERROR)
 
-logger = logging.getLogger("probatum.api")
+logger = logging.getLogger("verixia.api")
 
 app = FastAPI(
-    title       = "Probatum",
+    title       = "Verixia",
     description = "AI outputs, proven. Verification API for AI-generated claims.",
     version     = "0.1.0",
     docs_url    = "/docs",
@@ -53,14 +53,14 @@ async def startup():
     """Initialize registry and verify Qdrant on startup."""
     from engine.registry import initialize_registry
     initialize_registry()
-    logger.info("Probatum API started.")
+    logger.info("Verixia API started.")
     logger.info("Docs available at http://localhost:8790/docs")
 
 
 @app.get("/", include_in_schema=False)
 async def root():
     return {
-        "product": "Probatum",
+        "product": "Verixia",
         "tagline": "AI outputs, proven.",
         "version": "0.1.0",
         "docs":    "/docs",

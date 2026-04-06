@@ -1,5 +1,5 @@
 """
-Probatum — Structural Marker Detector
+Verixia — Structural Marker Detector
 Layer 1 of the multi-layer chunking system.
 Detects hard boundary markers in legal text —
 section numbers, statute references, clause openers,

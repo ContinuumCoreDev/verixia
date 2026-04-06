@@ -1,5 +1,5 @@
 """
-Probatum — Congress.gov Document Fetcher
+Verixia — Congress.gov Document Fetcher
 Retrieves federal statutes and bill text from the Congress.gov API v3.
 Handles rate limiting, retries, pagination, and raw storage.
 """
@@ -112,9 +112,9 @@ def _fetch_bill_text(congress: int, bill_type: str, bill_number: int) -> str:
     return ""
 
 
-def build_probatum_doc(bill: dict, full_text: str = "") -> dict:
+def build_verixia_doc(bill: dict, full_text: str = "") -> dict:
     """
-    Normalize a Congress.gov bill into Probatum's document schema.
+    Normalize a Congress.gov bill into Verixia's document schema.
     """
     congress    = bill.get("congress", "")
     bill_type   = bill.get("type", "").lower()
@@ -166,7 +166,7 @@ def fetch_statutes_by_query(
         max_results Max documents to return
 
     Returns:
-        List of normalized Probatum documents
+        List of normalized Verixia documents
     """
     params = {
         "query":  query,
@@ -195,7 +195,7 @@ def fetch_statutes_by_query(
         # Fetch full text
         full_text = _fetch_bill_text(congress_num, bill_type, bill_number)
 
-        doc  = build_probatum_doc(bill, full_text)
+        doc  = build_verixia_doc(bill, full_text)
         path = _save_raw(bill, doc["doc_id"])
         doc["raw_path"] = str(path)
 

@@ -1,5 +1,5 @@
 """
-Probatum — Scrape Queue Manager
+Verixia — Scrape Queue Manager
 Manages the citation scrape queue in SQLite.
 Handles deduplication, priority scoring,
 cross-reference logging, and status tracking.

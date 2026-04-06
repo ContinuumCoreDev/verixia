@@ -1,8 +1,8 @@
 """
-Probatum — Verification Registry
+Verixia — Verification Registry
 Persistent store of every claim ever scored.
 Tracks score history, graph versions, and re-scoring triggers.
-This is what makes Probatum defensible in due diligence —
+This is what makes Verixia defensible in due diligence —
 every claim has a dated, versioned verification record.
 """
 
@@ -66,7 +66,7 @@ def initialize_registry():
                 claim_id            TEXT PRIMARY KEY,
                 claim_text          TEXT NOT NULL,
                 domain              TEXT NOT NULL DEFAULT '',
-                source_system       TEXT NOT NULL DEFAULT 'probatum',
+                source_system       TEXT NOT NULL DEFAULT 'verixia',
                 as_of_date          TEXT,
                 first_scored        TEXT NOT NULL,
                 last_scored         TEXT NOT NULL,
@@ -123,7 +123,7 @@ def _graph_version() -> str:
 
 def record_verification(
     result,  # VerificationResult from confidence.py
-    source_system: str = "probatum",
+    source_system: str = "verixia",
 ) -> str:
     """
     Store a verification result in the registry.

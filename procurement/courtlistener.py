@@ -1,5 +1,5 @@
 """
-Probatum — CourtListener Document Fetcher
+Verixia — CourtListener Document Fetcher
 Retrieves federal case law from the CourtListener REST API v4.
 Handles rate limiting, retries, pagination, and raw storage.
 """
@@ -97,9 +97,9 @@ def _save_failed(doc_id: str, reason: str):
         }, f, indent=2)
 
 
-def build_probatum_doc(result: dict) -> dict:
+def build_verixia_doc(result: dict) -> dict:
     """
-    Normalize a CourtListener v4 search result into Probatum's document schema.
+    Normalize a CourtListener v4 search result into Verixia's document schema.
     v4 returns opinion text inline in the search result — no second fetch needed.
     """
     # Extract opinion text from embedded opinions array
@@ -155,7 +155,7 @@ def fetch_opinions_by_query(
 ) -> list[dict]:
     """
     Search CourtListener opinions by keyword query.
-    Returns list of normalized Probatum documents.
+    Returns list of normalized Verixia documents.
 
     Args:
         query       Search string
@@ -188,7 +188,7 @@ def fetch_opinions_by_query(
             if len(docs) >= max_results:
                 break
 
-            doc = build_probatum_doc(item)
+            doc = build_verixia_doc(item)
             path = _save_raw(item, doc["doc_id"])
             doc["raw_path"] = str(path)
 
@@ -225,7 +225,7 @@ def fetch_from_citation(citation_raw: str) -> dict | None:
         )
         return None
 
-    doc  = build_probatum_doc(result["results"][0])
+    doc  = build_verixia_doc(result["results"][0])
     path = _save_raw(result["results"][0], doc["doc_id"])
     doc["raw_path"] = str(path)
     return doc

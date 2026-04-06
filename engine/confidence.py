@@ -1,5 +1,5 @@
 """
-Probatum — Confidence Scorer
+Verixia — Confidence Scorer
 Aggregates stance results across multiple retrieved chunks
 into a single verification score with citation chain.
 

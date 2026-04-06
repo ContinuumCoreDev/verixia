@@ -1,5 +1,5 @@
 """
-Probatum — Document Type Classifier
+Verixia — Document Type Classifier
 Routes retrieved documents to the correct type-specific ingestor.
 Source-based classification is primary. Content-based is fallback.
 """

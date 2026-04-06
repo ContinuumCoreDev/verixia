@@ -1,5 +1,5 @@
 """
-Probatum — Full-Text Resolver
+Verixia — Full-Text Resolver
 Fetches complete opinion text from CourtListener cluster endpoint.
 The search API returns snippets only. This fetches the full document.
 Called after initial procurement to enrich documents before chunking.
@@ -120,7 +120,7 @@ def _fetch_opinion_text(sub_opinion_url: str) -> str:
 
 def resolve_full_text(doc: dict) -> dict:
     """
-    Enrich a Probatum document with full opinion text.
+    Enrich a Verixia document with full opinion text.
     Fetches from the cluster endpoint using the cluster_id.
 
     Strategy:
@@ -130,7 +130,7 @@ def resolve_full_text(doc: dict) -> dict:
       4. Update raw file on disk with resolved text
 
     Args:
-        doc     Probatum document dict from courtlistener.py
+        doc     Verixia document dict from courtlistener.py
 
     Returns:
         Same doc with raw_text replaced by full text.
@@ -180,8 +180,8 @@ def resolve_full_text(doc: dict) -> dict:
         if raw_path and Path(raw_path).exists():
             with open(raw_path) as f:
                 raw_data = json.load(f)
-            raw_data["_probatum_full_text"] = full_text
-            raw_data["_probatum_resolved"]  = True
+            raw_data["_verixia_full_text"] = full_text
+            raw_data["_verixia_resolved"]  = True
             with open(raw_path, "w") as f:
                 json.dump(raw_data, f, indent=2)
 
@@ -202,9 +202,9 @@ def resolve_from_opinion_id(cl_opinion_id: int) -> dict | None:
     Resolve a document directly from a CourtListener opinion ID.
     Used by the citation queue worker to fetch cited opinions.
 
-    Returns a fully resolved Probatum document or None.
+    Returns a fully resolved Verixia document or None.
     """
-    from procurement.courtlistener import build_probatum_doc, _save_raw
+    from procurement.courtlistener import build_verixia_doc, _save_raw
 
     opinion_url  = f"{BASE_URL}/opinions/{cl_opinion_id}/"
     opinion_data = _get(opinion_url)
@@ -236,7 +236,7 @@ def resolve_from_opinion_id(cl_opinion_id: int) -> dict | None:
         "opinions":     [{"id": cl_opinion_id, "cites": [], "snippet": ""}],
     }
 
-    doc = build_probatum_doc(result)
+    doc = build_verixia_doc(result)
 
     # Extract full text from opinion
     text = _best_text(opinion_data, OPINION_TEXT_FIELDS)

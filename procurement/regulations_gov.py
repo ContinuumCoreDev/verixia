@@ -1,5 +1,5 @@
 """
-Probatum — regulations.gov Document Fetcher
+Verixia — regulations.gov Document Fetcher
 Retrieves federal regulatory filings from the regulations.gov API v4.
 Covers final rules, proposed rules, notices, and supporting documents.
 """
@@ -120,9 +120,9 @@ def _fetch_full_text(document_id: str) -> str:
     return ""
 
 
-def build_probatum_doc(item: dict, full_text: str = "") -> dict:
+def build_verixia_doc(item: dict, full_text: str = "") -> dict:
     """
-    Normalize a regulations.gov document into Probatum's document schema.
+    Normalize a regulations.gov document into Verixia's document schema.
     """
     attrs     = item.get("attributes", {})
     doc_id_raw = item.get("id", "unknown")
@@ -177,7 +177,7 @@ def fetch_regulations_by_query(
         max_results Max documents to return
 
     Returns:
-        List of normalized Probatum documents
+        List of normalized Verixia documents
     """
     params = {
         "filter[searchTerm]": query,
@@ -202,7 +202,7 @@ def fetch_regulations_by_query(
             continue
 
         full_text = _fetch_full_text(doc_id_raw)
-        doc       = build_probatum_doc(item, full_text)
+        doc       = build_verixia_doc(item, full_text)
         path      = _save_raw(item, doc["doc_id"])
         doc["raw_path"] = str(path)
 

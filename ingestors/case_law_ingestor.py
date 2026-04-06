@@ -1,5 +1,5 @@
 """
-Probatum — Case Law Ingestor
+Verixia — Case Law Ingestor
 Specialized ingestor for federal court opinions.
 Tuned to the structure of CourtListener documents:
   - Opinion text in multiple HTML/text fields
@@ -29,7 +29,7 @@ class CaseLawIngestor(BaseIngestor):
         "html",
         "plain_text",
         "html_columbia",
-        "_probatum_full_text",  # pre-resolved full text
+        "_verixia_full_text",  # pre-resolved full text
     ]
 
     # Citation patterns specific to case law
