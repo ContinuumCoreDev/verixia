@@ -63,6 +63,10 @@ while True:
 
     for cite in batch:
         try:
+            # Skip regex citations — no direct resolution path
+            if cite["resolution"] != "courtlistener_id":
+                mark_failed(cite["normalized"], "regex citation — no resolution path")
+                continue
             doc = None
             if cite["resolution"] == "courtlistener_id" and cite["cl_opinion_id"]:
                 time.sleep(DELAY_BETWEEN)
