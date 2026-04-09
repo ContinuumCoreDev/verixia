@@ -161,6 +161,7 @@ class StanceResult:
     similarity_score: float
     weighted_score:   float
     break_type:       str
+    chunk_role:       str
     chunk_id:         str
     doc_id:           str
     published_date:   Optional[str]
@@ -185,6 +186,7 @@ def classify_stance(
     """
     chunk_text = chunk.get("text", "")
     break_type = chunk.get("break_type", "semantic")
+    chunk_role = chunk.get("chunk_role", "UNKNOWN")
     chunk_id   = chunk.get("chunk_id", "unknown")
     doc_id     = chunk.get("doc_id", "unknown")
     pub_date   = chunk.get("published_date")
@@ -197,6 +199,7 @@ def classify_stance(
             similarity_score  = similarity_score,
             weighted_score    = 0.0,
             break_type        = break_type,
+            chunk_role        = chunk_role,
             chunk_id          = chunk_id,
             doc_id            = doc_id,
             published_date    = pub_date,
@@ -246,11 +249,15 @@ def classify_stance(
         stance    = NEUTRAL
         nli_score = 0.0
 
-    break_weight   = BREAK_TYPE_WEIGHTS.get(break_type, 0.85)
-    # sqrt(similarity) reduces penalty for moderate similarity
-    # so high-NLI chunks aren't drowned out by low cosine scores
+    from engine.chunk_role import get_role_weight
     import math
-    weighted_score = round(nli_score * math.sqrt(similarity_score) * break_weight, 4)
+    break_weight   = BREAK_TYPE_WEIGHTS.get(break_type, 0.85)
+    role_weight    = get_role_weight(chunk_role)
+    # sqrt(similarity) reduces penalty for moderate similarity
+    # Role weight is the dominant signal — QUOTED_ARGUMENT scores low
+    # regardless of NLI confidence
+    combined_weight = break_weight * role_weight
+    weighted_score = round(nli_score * math.sqrt(similarity_score) * combined_weight, 4)
 
     logger.debug(
         f"{chunk_id}: {stance} weighted={weighted_score:.4f} "
@@ -263,6 +270,7 @@ def classify_stance(
         similarity_score  = similarity_score,
         weighted_score    = weighted_score,
         break_type        = break_type,
+        chunk_role        = chunk_role,
         chunk_id          = chunk_id,
         doc_id            = doc_id,
         published_date    = pub_date,

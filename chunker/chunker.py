@@ -58,6 +58,7 @@ class Chunk:
     doc_type:       str             # case_law | statute | regulation | unknown
     published_date: Optional[str]   # for temporal constraint layer
     section_label:  str = ""        # detected section heading if any
+    chunk_role:     str = "UNKNOWN"  # structural role in document
 
 
 def _count_tokens(text: str) -> int:
@@ -226,6 +227,13 @@ def chunk_document(doc: dict) -> list[Chunk]:
         first_sentence = text.split(".")[0] if "." in text else text[:80]
         section_label  = _extract_section_label(first_sentence) if break_type == "structural" else ""
 
+        from engine.chunk_role import classify_chunk_role
+        chunk_role = classify_chunk_role(
+            text,
+            doc_type     = doc_type,
+            position     = position,
+            total_chunks = len(raw_chunks),
+        )
         chunks.append(Chunk(
             chunk_id       = chunk_id,
             doc_id         = doc_id,
@@ -239,6 +247,7 @@ def chunk_document(doc: dict) -> list[Chunk]:
             doc_type       = doc_type,
             published_date = pub_date,
             section_label  = section_label,
+            chunk_role     = chunk_role,
         ))
 
     logger.info(

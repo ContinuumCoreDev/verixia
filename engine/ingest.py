@@ -173,6 +173,7 @@ def ingest_chunks(chunks: list, batch_size: int = 64) -> int:
                 "published_date": chunk.published_date,
                 "published_ts":   _date_to_ts(chunk.published_date),
                 "section_label":  chunk.section_label,
+                "chunk_role":     getattr(chunk, "chunk_role", "UNKNOWN"),
             }
             points.append(PointStruct(
                 id      = point_id,

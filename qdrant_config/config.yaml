@@ -1,5 +1,5 @@
 storage:
-  storage_path: /mnt/kayla_archive/probatum/graph/qdrant_storage
+  storage_path: /mnt/kayla_archive/verixia/graph/qdrant_storage
 
 service:
   http_port: 6335

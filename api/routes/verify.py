@@ -56,6 +56,7 @@ class VerifyResponse(BaseModel):
     as_of_date:         Optional[str]
     graph_coverage_note:str
     audit_trail:        dict
+    evidence_quality:   dict
 
 
 class ClaimResponse(BaseModel):
@@ -158,6 +159,16 @@ async def verify_claim(request: VerifyRequest):
         as_of_date          = result.as_of_date,
         graph_coverage_note = result.graph_coverage_note,
         audit_trail         = audit_trail,
+        evidence_quality    = {
+            "holdings_percentage":  getattr(getattr(result, "verifier_report", None), "holdings_percentage", None),
+            "weak_evidence_flag":   getattr(getattr(result, "verifier_report", None), "weak_evidence_flag", None),
+            "score_without_weak":   getattr(getattr(result, "verifier_report", None), "score_without_weak", None),
+            "score_drop":           getattr(getattr(result, "verifier_report", None), "score_drop", None),
+            "original_confidence":  getattr(getattr(result, "verifier_report", None), "original_confidence", None),
+            "verifier_passed":      getattr(getattr(result, "verifier_report", None), "passed", None),
+            "downgrade_reason":     getattr(getattr(result, "verifier_report", None), "downgrade_reason", None),
+            "notes":                getattr(getattr(result, "verifier_report", None), "notes", []),
+        },
     )
 
 

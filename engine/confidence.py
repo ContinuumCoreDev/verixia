@@ -52,6 +52,7 @@ class Citation:
     section_label:  str
     text_excerpt:   str       # first 300 chars
     stance_score:   float
+    chunk_role:     str = "UNKNOWN"
 
 
 @dataclass
@@ -75,6 +76,9 @@ class VerificationResult:
 
     # Graph coverage
     graph_coverage_note: str  = ""
+
+    # Verifier report — populated after verify() runs
+    verifier_report:     object = None
 
 
 def _classify_confidence(score: float) -> str:
@@ -100,6 +104,7 @@ def _build_citation(result: StanceResult, chunk_payload: dict) -> Citation:
         section_label  = chunk_payload.get("section_label", ""),
         text_excerpt   = result.text_snippet[:300],
         stance_score   = result.weighted_score,
+        chunk_role     = chunk_payload.get("chunk_role", "UNKNOWN"),
     )
 
 
@@ -234,12 +239,22 @@ def verify(
         as_of_date = as_of_date,
     )
 
-    return score_claim(
+    result = score_claim(
         claim            = claim,
         retrieved_chunks = chunks,
         as_of_date       = as_of_date,
         domain           = doc_type or "general",
     )
+
+    # Layer 2: Pre-response verifier
+    from engine.verifier import verify_evidence_quality
+    report = verify_evidence_quality(result)
+
+    # Apply verified confidence
+    result.confidence       = report.verified_confidence
+    result.verifier_report  = report
+
+    return result
 
 
 if __name__ == "__main__":
