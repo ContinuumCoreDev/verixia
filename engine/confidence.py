@@ -41,6 +41,11 @@ CONFIDENCE_THRESHOLDS = {
     # Below LOW = UNVERIFIABLE
 }
 
+# CONTESTED threshold — when contradicting evidence is substantial
+# relative to supporting evidence
+CONTESTED_THRESHOLD = 0.35  # if contradicting score is this fraction
+                             # of supporting score, mark as CONTESTED
+
 
 @dataclass
 class Citation:
@@ -79,6 +84,9 @@ class VerificationResult:
 
     # Verifier report — populated after verify() runs
     verifier_report:     object = None
+
+    # Human-readable reasoning for the confidence level
+    reasoning:           str    = ""
 
 
 def _classify_confidence(score: float) -> str:
@@ -174,6 +182,15 @@ def score_claim(
 
     confidence = _classify_confidence(score)
 
+    # Check for CONTESTED — substantial evidence on both sides
+    if (confidence in ("MEDIUM", "HIGH") and
+        len(contradictions) > 0 and
+        contradict_weight > 0 and
+        support_weight > 0):
+        contest_ratio = contradict_weight / (support_weight + contradict_weight)
+        if contest_ratio >= CONTESTED_THRESHOLD:
+            confidence = "CONTESTED"
+
     # Coverage note
     if len(retrieved_chunks) < MIN_EVIDENCE_CHUNKS:
         coverage_note = (
@@ -183,6 +200,47 @@ def score_claim(
     else:
         coverage_note = (
             f"{len(retrieved_chunks)} chunks evaluated from knowledge base."
+        )
+
+    # Generate reasoning explanation
+    if total < 0.01:
+        reasoning = (
+            "No supporting or contradicting evidence found in the knowledge base. "
+            "The corpus may not contain cases or documents relevant to this claim."
+        )
+    elif score >= CONFIDENCE_THRESHOLDS["HIGH"]:
+        reasoning = (
+            f"Supported by {len(citations)} citation(s) with strong evidence. "
+            f"{len(contradictions)} contradicting source(s) found but outweighed."
+        )
+    elif score >= CONFIDENCE_THRESHOLDS["MEDIUM"]:
+        if len(contradictions) > 0:
+            reasoning = (
+                f"Partially supported by {len(citations)} citation(s). "
+                f"{len(contradictions)} contradicting source(s) present — "
+                f"claim is supported but contested in the corpus."
+            )
+        else:
+            reasoning = (
+                f"Moderate support found across {len(citations)} citation(s). "
+                f"Confidence limited by evidence quality or corpus coverage."
+            )
+    elif score >= CONFIDENCE_THRESHOLDS["LOW"]:
+        if len(contradictions) >= len(citations):
+            reasoning = (
+                f"Contradicting evidence outweighs supporting evidence. "
+                f"{len(contradictions)} source(s) found that oppose this claim."
+            )
+        else:
+            reasoning = (
+                f"Weak support found in {len(citations)} citation(s). "
+                f"Insufficient evidence to verify this claim with confidence."
+            )
+    else:
+        reasoning = (
+            "Claim could not be verified against available sources. "
+            "Either the corpus lacks relevant documents or no supporting "
+            "evidence was found for this specific claim."
         )
 
     logger.info(
@@ -206,6 +264,7 @@ def score_claim(
         domain              = domain or "",
         as_of_date          = as_of_date,
         graph_coverage_note = coverage_note,
+        reasoning           = reasoning,
     )
 
 
@@ -232,12 +291,56 @@ def verify(
 
     logger.info(f"Verifying: {claim[:80]}...")
 
-    chunks = search(
-        query      = claim,
-        top_k      = top_k,
-        doc_type   = doc_type,
-        as_of_date = as_of_date,
+    # Detect if claim is about constitutional text directly
+    # If so, prioritize constitutional text chunks
+    import re
+    constitutional_indicators = [
+        r"constitution (says?|states?|provides?|requires?|guarantees?)",
+        r"amendment (i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xiv|xv)",
+        r"the (first|second|third|fourth|fifth|sixth|seventh|eighth|"
+        r"ninth|tenth|fourteenth) amendment",
+        r"article (i|ii|iii|iv|v|vi|vii)",
+        r"reserves? (powers?|rights?)",
+        r"supreme law",
+        r"congress shall",
+        r"right of the people",
+    ]
+    is_constitutional_claim = any(
+        re.search(p, claim, re.IGNORECASE)
+        for p in constitutional_indicators
     )
+
+    if is_constitutional_claim:
+        # Get constitutional text chunks first
+        const_chunks = search(
+            query      = claim,
+            top_k      = top_k,
+            doc_type   = "statute",  # founding docs ingested as statute
+            as_of_date = as_of_date,
+        )
+        # Then get case law chunks
+        case_chunks = search(
+            query      = claim,
+            top_k      = top_k,
+            doc_type   = doc_type,
+            as_of_date = as_of_date,
+        )
+        # Merge — constitutional text first, then case law
+        seen = set()
+        chunks = []
+        for c in const_chunks + case_chunks:
+            cid = c["payload"].get("chunk_id", "")
+            if cid not in seen:
+                seen.add(cid)
+                chunks.append(c)
+        chunks = chunks[:top_k]
+    else:
+        chunks = search(
+            query      = claim,
+            top_k      = top_k,
+            doc_type   = doc_type,
+            as_of_date = as_of_date,
+        )
 
     result = score_claim(
         claim            = claim,
