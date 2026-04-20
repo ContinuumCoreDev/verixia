@@ -44,6 +44,7 @@ app.add_middleware(
     allow_headers  = ["*"],
 )
 
+from api.auth import initialize_auth
 from api.routes.verify import router
 app.include_router(router)
 

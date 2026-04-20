@@ -7,7 +7,8 @@ GET  /v1/stats  — registry and collection statistics
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
+from api.auth import require_api_key, log_request, initialize_auth, HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ class StatsResponse(BaseModel):
 # ── Routes ────────────────────────────────────────────────────
 
 @router.post("/verify", response_model=VerifyResponse)
-async def verify_claim(request: VerifyRequest):
+async def verify_claim(request: VerifyRequest, key_data: dict = Depends(require_api_key)):
     """
     Verify a claim against the Verixia knowledge graph.
 
@@ -101,6 +102,8 @@ async def verify_claim(request: VerifyRequest):
         f"domain={request.domain} as_of={request.as_of_date}"
     )
 
+    import time
+    start = time.time()
     try:
         result = verify(
             claim      = request.claim,
@@ -125,6 +128,14 @@ async def verify_claim(request: VerifyRequest):
         col_stats = collection_stats()
     except Exception:
         col_stats = {}
+
+    response_ms = int((time.time() - start) * 1000)
+    log_request(
+        key_prefix  = key_data.get("key_prefix", "unknown"),
+        endpoint    = "/v1/verify",
+        response_ms = response_ms,
+        confidence  = result.confidence,
+    )
 
     audit_trail = {
         "sources_queried": col_stats.get("points_count", 0),
