@@ -1,10 +1,29 @@
+# Python
 venv/
 __pycache__/
 *.pyc
 *.pyo
 .env
+
+# Credentials and keys
+data/auth.db
 config/config.yaml
-*.db
-*.sqlite
+*.pem
+*.key
+
+# Qdrant local storage
+qdrant_storage/
+qdrant_config/
+
+# Logs
+journal/
 *.log
-/aws/
+nohup.out
+
+# Large data files
+corpus/
+*.json.bak
+
+# OS
+.DS_Store
+Thumbs.db
