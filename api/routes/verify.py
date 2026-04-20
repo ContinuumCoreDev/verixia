@@ -58,6 +58,7 @@ class VerifyResponse(BaseModel):
     audit_trail:        dict
     evidence_quality:   dict
     reasoning:          str
+    verdict:            str
 
 
 class ClaimResponse(BaseModel):
@@ -160,6 +161,7 @@ async def verify_claim(request: VerifyRequest):
         as_of_date          = result.as_of_date,
         graph_coverage_note = result.graph_coverage_note,
         audit_trail         = audit_trail,
+        verdict             = getattr(result, "verdict", "UNVERIFIABLE"),
         reasoning           = getattr(result, "reasoning", ""),
         evidence_quality    = {
             "holdings_percentage":  getattr(getattr(result, "verifier_report", None), "holdings_percentage", None),

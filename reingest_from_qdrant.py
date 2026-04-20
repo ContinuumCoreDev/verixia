@@ -1,14 +1,15 @@
 """
-Verixia — Re-ingest from Qdrant Cloud
-Extracts documents from cloud Qdrant, reconstructs full text
-by joining chunks in position order, re-chunks with role
-classification, and ingests to local verixia_legal collection.
-
-No CourtListener calls. No rate limiting. Clean re-ingest.
+Verixia — Re-ingest from Qdrant Cloud + Founding Documents
+Extracts documents from cloud Qdrant, reconstructs full text,
+re-chunks with updated role classification, and ingests to
+local verixia_legal collection.
+Includes founding documents from saved corpus.
 """
 
+import json
 import logging
 import time
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -25,6 +26,7 @@ with open("config/config.yaml") as f:
 
 CLOUD_URL = "d98b1c4b-cb98-4006-90aa-064f43a6c2dc.us-east-1-1.aws.cloud.qdrant.io"
 CLOUD_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.9skpxOtq3x8-VwDTEZgooecvuwwY9q5qQHILSHCFMnM"
+FOUNDING_DIR = Path("/mnt/kayla_archive/verixia/corpus/founding")
 
 from qdrant_client import QdrantClient
 from engine.ingest import (
@@ -36,16 +38,28 @@ from citation.extractor import extract_from_doc
 from citation.queue_manager import initialize_queue, process_citations
 
 
+def progress_bar(current, total, label="", width=50):
+    pct     = current / total if total > 0 else 0
+    filled  = int(width * pct)
+    bar     = "█" * filled + "░" * (width - filled)
+    sys.stdout.write(f"\r  [{bar}] {current}/{total} {pct:.0%} {label}")
+    sys.stdout.flush()
+    if current >= total:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+
+
 def scroll_all_points(cloud: QdrantClient) -> list:
-    """Scroll all points from cloud collection."""
     all_points = []
     offset     = None
-    batch      = 0
+
+    logger.info("Scrolling all points from Qdrant Cloud...")
+    cloud_count = cloud.get_collection("verixia_legal").points_count
 
     while True:
         result = cloud.scroll(
             collection_name = "verixia_legal",
-            limit           = 100,
+            limit           = 200,
             offset          = offset,
             with_vectors    = False,
             with_payload    = True,
@@ -55,24 +69,17 @@ def scroll_all_points(cloud: QdrantClient) -> list:
             break
 
         all_points.extend(points)
+        progress_bar(len(all_points), cloud_count, "points scrolled")
         offset = next_offset
-        batch += 1
-
-        if batch % 10 == 0:
-            logger.info(f"  Scrolled {len(all_points)} points...")
 
         if next_offset is None:
             break
 
+    print()
     return all_points
 
 
 def reconstruct_documents(points: list) -> list[dict]:
-    """
-    Group chunks by doc_id and reconstruct documents
-    by joining text in position order.
-    """
-    # Group by doc_id
     doc_chunks = defaultdict(list)
     for p in points:
         payload = p.payload
@@ -80,25 +87,17 @@ def reconstruct_documents(points: list) -> list[dict]:
         if doc_id:
             doc_chunks[doc_id].append(payload)
 
-    # Reconstruct each document
     docs = []
     for doc_id, chunks in doc_chunks.items():
-        # Sort by position
         chunks.sort(key=lambda c: c.get("position", 0))
-
-        # Take metadata from first chunk
-        first = chunks[0]
-
-        # Join text in order — use space between chunks
+        first     = chunks[0]
         full_text = " ".join(
             c.get("text", "") for c in chunks
             if c.get("text", "").strip()
         )
-
         if len(full_text.strip()) < 100:
             continue
-
-        doc = {
+        docs.append({
             "doc_id":         doc_id,
             "doc_type":       first.get("doc_type", "unknown"),
             "source":         first.get("source", "unknown"),
@@ -107,16 +106,26 @@ def reconstruct_documents(points: list) -> list[dict]:
             "parse_status":   "ok",
             "title":          doc_id,
             "cites":          [],
-        }
-        docs.append(doc)
+        })
 
     return docs
 
 
-def reingest_from_cloud(batch_report_interval: int = 25):
-    """
-    Main re-ingest pipeline.
-    """
+def load_founding_docs() -> list[dict]:
+    """Load founding documents from saved JSON."""
+    founding_json = FOUNDING_DIR / "founding_docs.json"
+    if not founding_json.exists():
+        logger.warning("Founding docs JSON not found — skipping.")
+        return []
+
+    with open(founding_json) as f:
+        docs = json.load(f)
+
+    logger.info(f"Loaded {len(docs)} founding documents.")
+    return docs
+
+
+def reingest_all():
     initialize_queue()
 
     # Connect to cloud
@@ -126,47 +135,56 @@ def reingest_from_cloud(batch_report_interval: int = 25):
         timeout = 60,
     )
 
-    cloud_count = cloud.get_collection("verixia_legal").points_count
-    logger.info(f"Cloud collection: {cloud_count} points")
-
     # Drop and recreate local collection
-    local = _get_client()
+    local    = _get_client()
     existing = [c.name for c in local.get_collections().collections]
     if COLLECTION in existing:
         local.delete_collection(COLLECTION)
-        logger.info(f"Dropped local '{COLLECTION}'.")
+        logger.info(f"Dropped '{COLLECTION}' — starting clean.")
 
     ensure_collection()
-    logger.info(f"Local '{COLLECTION}' recreated.")
+    logger.info(f"Collection '{COLLECTION}' recreated.")
 
     # Scroll all points from cloud
-    logger.info("Scrolling all points from cloud...")
     points = scroll_all_points(cloud)
     logger.info(f"Retrieved {len(points)} points from cloud.")
 
     # Reconstruct documents
     logger.info("Reconstructing documents from chunks...")
-    docs = reconstruct_documents(points)
-    logger.info(f"Reconstructed {len(docs)} documents.")
+    cloud_docs = reconstruct_documents(points)
+    logger.info(f"Reconstructed {len(cloud_docs)} documents from cloud.")
 
-    # Re-chunk with role classification and ingest
+    # Load founding documents
+    founding_docs = load_founding_docs()
+
+    # Combine — founding docs first so they anchor the collection
+    all_docs   = founding_docs + cloud_docs
+    total_docs = len(all_docs)
+    logger.info(f"Total documents to re-ingest: {total_docs} "
+                f"({len(founding_docs)} founding + {len(cloud_docs)} case law)")
+
+    # Re-chunk with updated role classification and ingest
     ingested_docs   = 0
     ingested_chunks = 0
     failed_docs     = 0
     citations_found = 0
+    role_counts     = {}
 
-    for i, doc in enumerate(docs):
+    logger.info(f"Re-ingesting with updated role classification...")
+    print()
+
+    for i, doc in enumerate(all_docs):
+        progress_bar(i + 1, total_docs,
+                     f"| {ingested_chunks} chunks | {doc.get('doc_id','?')[:20]}")
         try:
             chunks = chunk_document(doc)
-
             if not chunks:
                 failed_docs += 1
                 continue
 
-            # Verify roles are being assigned
-            roles = set(c.chunk_role for c in chunks)
-            if roles == {"UNKNOWN"}:
-                logger.debug(f"{doc['doc_id']}: all chunks UNKNOWN role")
+            # Track role distribution
+            for c in chunks:
+                role_counts[c.chunk_role] = role_counts.get(c.chunk_role, 0) + 1
 
             ingested = ingest_chunks(chunks)
             ingested_chunks += ingested
@@ -176,30 +194,35 @@ def reingest_from_cloud(batch_report_interval: int = 25):
             process_citations(citations)
             citations_found += len(citations)
 
-            if (i + 1) % batch_report_interval == 0:
-                stats = collection_stats()
-                logger.info(
-                    f"Progress: {i+1}/{len(docs)} docs — "
-                    f"{ingested_chunks} chunks — "
-                    f"{stats.get('points_count', 0)} points"
-                )
-
         except Exception as e:
             failed_docs += 1
-            logger.error(f"Failed {doc.get('doc_id', 'unknown')}: {e}")
+            logger.error(f"Failed {doc.get('doc_id','?')}: {e}")
 
+    print()
+
+    # Final stats
     final = collection_stats()
-    logger.info(f"Re-ingest complete.")
-    logger.info(f"  Docs processed: {ingested_docs}")
-    logger.info(f"  Docs failed:    {failed_docs}")
-    logger.info(f"  Chunks:         {ingested_chunks}")
-    logger.info(f"  Citations:      {citations_found}")
-    logger.info(f"  Points:         {final.get('points_count', 0)}")
+    logger.info(f"")
+    logger.info(f"═══ Re-ingest Complete ═══")
+    logger.info(f"  Documents processed: {ingested_docs}")
+    logger.info(f"  Documents failed:    {failed_docs}")
+    logger.info(f"  Chunks ingested:     {ingested_chunks}")
+    logger.info(f"  Citations extracted: {citations_found}")
+    logger.info(f"  Collection points:   {final.get('points_count', 0)}")
+    logger.info(f"")
+    logger.info(f"  Role distribution:")
+    for role, count in sorted(role_counts.items(), key=lambda x: -x[1]):
+        pct = count / ingested_chunks * 100 if ingested_chunks > 0 else 0
+        logger.info(f"    {role:<25} {count:>6} ({pct:.1f}%)")
 
     return final.get("points_count", 0)
 
 
 if __name__ == "__main__":
-    logger.info("Starting re-ingest from Qdrant Cloud...")
-    points = reingest_from_cloud()
-    logger.info(f"Final: {points} points in local verixia_legal")
+    logger.info("Starting Verixia re-ingest with updated role patterns...")
+    logger.info("Founding documents will be ingested first.")
+    start = time.time()
+    points = reingest_all()
+    elapsed = (time.time() - start) / 60
+    logger.info(f"Total time: {elapsed:.1f} minutes")
+    logger.info(f"Final collection: {points} points in {COLLECTION}")

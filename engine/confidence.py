@@ -87,6 +87,7 @@ class VerificationResult:
 
     # Human-readable reasoning for the confidence level
     reasoning:           str    = ""
+    verdict:             str    = ""  # YES | YES_CONTESTED | NO | UNVERIFIABLE
 
 
 def _classify_confidence(score: float) -> str:
@@ -202,45 +203,74 @@ def score_claim(
             f"{len(retrieved_chunks)} chunks evaluated from knowledge base."
         )
 
-    # Generate reasoning explanation
+    # Generate verdict and reasoning — conversational legal format
+    top_support    = citations[0]      if citations      else None
+    top_contradict = contradictions[0] if contradictions else None
+
+    top_support_ref = (
+        f"{top_support.doc_id} ({top_support.published_date[:4] if top_support.published_date else '?'})"
+        if top_support else None
+    )
+    top_contradict_ref = (
+        f"{top_contradict.doc_id} ({top_contradict.published_date[:4] if top_contradict.published_date else '?'})"
+        if top_contradict else None
+    )
+
     if total < 0.01:
         reasoning = (
-            "No supporting or contradicting evidence found in the knowledge base. "
-            "The corpus may not contain cases or documents relevant to this claim."
+            "Cannot verify from available sources. "
+            "The knowledge base does not contain documents directly "
+            "addressing this claim. Expanding the corpus may resolve this."
+        )
+    elif confidence == "CONTESTED":
+        reasoning = (
+            f"Yes, but contested. "
+            f"Supporting authority found in {len(citations)} source(s)"
+            f"{f', including {top_support_ref}' if top_support_ref else ''}. "
+            f"However, {len(contradictions)} contradicting source(s) present"
+            f"{f', including {top_contradict_ref}' if top_contradict_ref else ''} "
+            f"where the court reached a conflicting conclusion. "
+            f"Both lines of authority exist in the corpus."
         )
     elif score >= CONFIDENCE_THRESHOLDS["HIGH"]:
         reasoning = (
-            f"Supported by {len(citations)} citation(s) with strong evidence. "
-            f"{len(contradictions)} contradicting source(s) found but outweighed."
+            f"Yes. Supported by {len(citations)} authoritative source(s)"
+            f"{f', including {top_support_ref}' if top_support_ref else ''}. "
+            f"{'Minor contradicting authority present but outweighed.' if contradictions else 'No contradicting authority found.'}"
         )
     elif score >= CONFIDENCE_THRESHOLDS["MEDIUM"]:
-        if len(contradictions) > 0:
+        if contradictions:
             reasoning = (
-                f"Partially supported by {len(citations)} citation(s). "
-                f"{len(contradictions)} contradicting source(s) present — "
-                f"claim is supported but contested in the corpus."
+                f"Partially supported. {len(citations)} source(s) support this claim"
+                f"{f', including {top_support_ref}' if top_support_ref else ''}. "
+                f"{len(contradictions)} source(s) contest it"
+                f"{f', including {top_contradict_ref}' if top_contradict_ref else ''}. "
+                f"Weight of authority favors the claim but is not conclusive."
             )
         else:
             reasoning = (
-                f"Moderate support found across {len(citations)} citation(s). "
-                f"Confidence limited by evidence quality or corpus coverage."
+                f"Partially supported by {len(citations)} source(s)"
+                f"{f', including {top_support_ref}' if top_support_ref else ''}. "
+                f"Evidence quality or corpus coverage limits confidence."
             )
     elif score >= CONFIDENCE_THRESHOLDS["LOW"]:
         if len(contradictions) >= len(citations):
             reasoning = (
-                f"Contradicting evidence outweighs supporting evidence. "
-                f"{len(contradictions)} source(s) found that oppose this claim."
+                f"No. Contradicting authority outweighs supporting evidence. "
+                f"{len(contradictions)} source(s) oppose this claim"
+                f"{f', including {top_contradict_ref}' if top_contradict_ref else ''}. "
+                f"{'Limited supporting authority found but insufficient.' if citations else 'No supporting authority found.'}"
             )
         else:
             reasoning = (
-                f"Weak support found in {len(citations)} citation(s). "
-                f"Insufficient evidence to verify this claim with confidence."
+                f"Weakly supported. {len(citations)} source(s) offer limited support"
+                f"{f', including {top_support_ref}' if top_support_ref else ''}. "
+                f"Insufficient evidence to verify with confidence."
             )
     else:
         reasoning = (
-            "Claim could not be verified against available sources. "
-            "Either the corpus lacks relevant documents or no supporting "
-            "evidence was found for this specific claim."
+            "Cannot verify. No supporting evidence found in the knowledge base. "
+            f"{'Contradicting authority present suggesting the claim may be false.' if contradictions else 'Corpus may lack relevant documents on this topic.'}"
         )
 
     logger.info(
@@ -265,6 +295,13 @@ def score_claim(
         as_of_date          = as_of_date,
         graph_coverage_note = coverage_note,
         reasoning           = reasoning,
+        verdict             = (
+            "YES" if confidence in ("HIGH",) else
+            "YES_CONTESTED" if confidence == "CONTESTED" else
+            "PARTIALLY_SUPPORTED" if confidence == "MEDIUM" else
+            "NO" if confidence == "LOW" else
+            "UNVERIFIABLE"
+        ),
     )
 
 
@@ -291,9 +328,50 @@ def verify(
 
     logger.info(f"Verifying: {claim[:80]}...")
 
+    import re
+
+    # Detect phrase-existence claims — "explicitly contains the phrase X"
+    # These require literal text matching, not semantic search
+    phrase_match = re.search(
+        "explicitly (contains|includes|uses|states) the phrase (.+?)[\.\?]",
+        claim, re.IGNORECASE
+    )
+    if phrase_match:
+        sought_phrase = phrase_match.group(2).strip().lower()
+        # Search for the phrase literally in constitutional text
+        const_chunks = search(
+            query      = sought_phrase,
+            top_k      = top_k,
+            doc_type   = "constitutional_text",
+            as_of_date = as_of_date,
+        )
+        # Check if any chunk actually contains the exact phrase
+        phrase_found = any(
+            sought_phrase in c["payload"].get("text", "").lower()
+            for c in const_chunks
+        )
+        if not phrase_found:
+            # Phrase not found — return UNVERIFIABLE with explanation
+            return VerificationResult(
+                claim      = claim,
+                score      = 0.0,
+                confidence = "UNVERIFIABLE",
+                graph_coverage_note = (
+                    f"The exact phrase '{sought_phrase}' was not found "
+                    f"in the constitutional text corpus."
+                ),
+                reasoning  = (
+                    f"The exact phrase '{sought_phrase}' does not appear "
+                    f"in the constitutional documents indexed in this knowledge base. "
+                    f"This phrase may exist in judicial opinions or secondary sources "
+                    f"but is not present as explicit constitutional text."
+                ),
+                as_of_date = as_of_date,
+                domain     = doc_type or "",
+            )
+
     # Detect if claim is about constitutional text directly
     # If so, prioritize constitutional text chunks
-    import re
     constitutional_indicators = [
         r"constitution (says?|states?|provides?|requires?|guarantees?)",
         r"amendment (i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xiv|xv)",
@@ -315,7 +393,7 @@ def verify(
         const_chunks = search(
             query      = claim,
             top_k      = top_k,
-            doc_type   = "statute",  # founding docs ingested as statute
+            doc_type   = "constitutional_text",  # founding docs
             as_of_date = as_of_date,
         )
         # Then get case law chunks

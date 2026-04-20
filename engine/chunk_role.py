@@ -200,10 +200,18 @@ def classify_chunk_role(
     if not text or len(text.strip()) < 20:
         return UNKNOWN
 
-    # Statutes and regulations get appropriate roles directly
-    if doc_type == "statute":
+    # Normalize whitespace — OCR text has embedded newlines
+    # that break pattern matching
+    text = " ".join(text.split())
+
+    # Constitutional documents get highest authority role
+    if doc_type in ("constitutional_text", "constitutional_commentary"):
+        # Still pattern match — but default to CONSTITUTIONAL_TEXT
+        # if no more specific pattern matches
+        pass
+    elif doc_type == "statute":
         return STATUTORY_TEXT
-    if doc_type == "regulation":
+    elif doc_type == "regulation":
         return STATUTORY_TEXT
 
     # For case law, use pattern matching with priority ordering
@@ -265,6 +273,10 @@ def classify_chunk_role(
             return DICTA  # Late chunks often contain the holding or dicta
         elif position_ratio < 0.15:
             return RECITATION  # Early chunks often contain facts/syllabus
+
+    # Constitutional documents default to CONSTITUTIONAL_TEXT
+    if doc_type in ("constitutional_text",):
+        return CONSTITUTIONAL_TEXT
 
     return UNKNOWN
 
