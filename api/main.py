@@ -45,8 +45,10 @@ app.add_middleware(
 )
 
 from api.auth import initialize_auth
+from api.routes.authority import router as authority_router
 from api.routes.verify import router
 app.include_router(router)
+app.include_router(authority_router)
 
 
 @app.on_event("startup")
