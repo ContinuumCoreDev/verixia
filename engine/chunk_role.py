@@ -49,6 +49,9 @@ CHUNK_ROLE_WEIGHTS = {
 
 # Holding patterns — the court's actual decision
 HOLDING_PATTERNS = [
+    r"is overruled",
+    r"overrul(ed|ing) [A-Z][a-z]+",
+    r"we overrule",
     r"\bwe hold\b",
     r"\bwe conclude\b",
     r"\bwe find\b",

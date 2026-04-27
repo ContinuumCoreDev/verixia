@@ -38,6 +38,7 @@ import os
 QDRANT_HOST     = os.environ.get("QDRANT_HOST", _cfg["qdrant"]["host"])
 QDRANT_PORT     = int(os.environ.get("QDRANT_PORT", _cfg["qdrant"]["port"]))
 QDRANT_API_KEY  = os.environ.get("QDRANT_API_KEY", None)
+QDRANT_URL      = os.environ.get("QDRANT_URL", None)
 COLLECTION      = _cfg["qdrant"]["collection"]
 EMBEDDING_MODEL = _cfg["embedding"]["model"]
 EMBEDDING_DEV   = _cfg["embedding"]["device"]
@@ -51,7 +52,14 @@ _model  = None
 def _get_client() -> QdrantClient:
     global _client
     if _client is None:
-        if QDRANT_API_KEY:
+        if QDRANT_URL:
+            _client = QdrantClient(
+                url     = QDRANT_URL,
+                api_key = QDRANT_API_KEY,
+                timeout = 30,
+            )
+            logger.info(f"Qdrant connected (cloud url): {QDRANT_URL}")
+        elif QDRANT_API_KEY:
             _client = QdrantClient(
                 host    = QDRANT_HOST,
                 port    = QDRANT_PORT,
