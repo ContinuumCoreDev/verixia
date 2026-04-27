@@ -196,6 +196,7 @@
   .badge-MEDIUM     { background: #FEF3C7; color: #92400E; }
   .badge-LOW        { background: #FEE2E2; color: #991B1B; }
   .badge-UNVERIFIABLE { background: #F3F4F6; color: #374151; }
+  .badge-CONTESTED    { background: #FEF3C7; color: #92400E; border: 1px solid #D97706; }
 
   .score-bar-wrap {
     flex: 1;
@@ -441,6 +442,13 @@
     <!-- Meta -->
     <div class="meta-row" id="result-meta"></div>
 
+    <!-- Verdict + Reasoning -->
+    <div id="verdict-block" style="margin:16px 0;padding:16px;background:#F8F9FB;border-radius:8px;border-left:4px solid #0F6E56;display:none;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#5F5E5A;text-transform:uppercase;margin-bottom:6px;">Verdict</div>
+      <div id="result-verdict" style="font-size:18px;font-weight:700;color:#0F6E56;margin-bottom:10px;"></div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#5F5E5A;text-transform:uppercase;margin-bottom:6px;">Reasoning</div>
+      <div id="result-reasoning" style="font-size:15px;color:#2C2C2A;line-height:1.6;"></div>
+    </div>
     <!-- Citations -->
     <div id="citations-section">
       <div class="section-label section-supports">Supporting Evidence</div>
@@ -533,6 +541,12 @@ async function runVerify() {
     const badge = document.getElementById('result-badge');
     badge.textContent = data.confidence;
     badge.className = `confidence-badge badge-${data.confidence}`;
+    // Verdict + Reasoning
+    if (data.verdict || data.reasoning) {
+      document.getElementById('result-verdict').textContent = data.verdict || '';
+      document.getElementById('result-reasoning').textContent = data.reasoning || '';
+      document.getElementById('verdict-block').style.display = 'block';
+    }
 
     const bar = document.getElementById('result-bar');
     bar.style.width = `${score}%`;
