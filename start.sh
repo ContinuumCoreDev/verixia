@@ -17,7 +17,7 @@ echo "  Qdrant: verixia_legal — ${POINTS} points"
 cd /home/lexiegirl/Desktop/verixia
 source venv/bin/activate
 export VERIXIA_DEV_MODE=true
-nohup python3 -m uvicorn api.main:app \
+VERIXIA_DEV_MODE=true nohup python3 -m uvicorn api.main:app \
     --host 0.0.0.0 \
     --port 8790 \
     --workers 1 \

@@ -29,6 +29,12 @@ for noisy in ["httpx", "httpcore", "sentence_transformers",
 
 logger = logging.getLogger("verixia.api")
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+
 app = FastAPI(
     title       = "Verixia",
     description = "AI outputs, proven. Verification API for AI-generated claims.",
@@ -50,6 +56,9 @@ from api.routes.verify import router
 app.include_router(router)
 app.include_router(authority_router)
 
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 async def startup():

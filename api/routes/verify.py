@@ -7,7 +7,9 @@ GET  /v1/stats  — registry and collection statistics
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from api.auth import require_api_key, log_request, initialize_auth, HTTPException
 from pydantic import BaseModel, Field
 
@@ -83,7 +85,7 @@ class StatsResponse(BaseModel):
 # ── Routes ────────────────────────────────────────────────────
 
 @router.post("/verify", response_model=VerifyResponse)
-async def verify_claim(request: VerifyRequest, key_data: dict = Depends(require_api_key)):
+async def verify_claim(request: Request, body: VerifyRequest, key_data: dict = Depends(require_api_key)):
     """
     Verify a claim against the Verixia knowledge graph.
 
@@ -99,26 +101,26 @@ async def verify_claim(request: VerifyRequest, key_data: dict = Depends(require_
     from engine.ingest     import collection_stats
 
     logger.info(
-        f"Verify request: '{request.claim[:60]}...' "
-        f"domain={request.domain} as_of={request.as_of_date}"
+        f"Verify request: '{body.claim[:60]}...' "
+        f"domain={body.domain} as_of={body.as_of_date}"
     )
 
     import time
     start = time.time()
     try:
         result = verify(
-            claim      = request.claim,
-            top_k      = request.top_k,
-            as_of_date = request.as_of_date,
-            doc_type   = request.domain,
+            claim      = body.claim,
+            top_k      = body.top_k,
+            as_of_date = body.as_of_date,
+            doc_type   = body.domain,
         )
     except Exception as e:
         logger.error(f"Verification error: {e}")
         raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
 
     # Store in registry
-    claim_id = _claim_id(request.claim)
-    if request.store:
+    claim_id = _claim_id(body.claim)
+    if body.store:
         try:
             claim_id = record_verification(result)
         except Exception as e:
@@ -141,8 +143,8 @@ async def verify_claim(request: VerifyRequest, key_data: dict = Depends(require_
     audit_trail = {
         "sources_queried": col_stats.get("points_count", 0),
         "graph_version":   _graph_version(),
-        "temporal_filter": request.as_of_date or "none",
-        "top_k":           request.top_k,
+        "temporal_filter": body.as_of_date or "none",
+        "top_k":           body.top_k,
     }
 
     # Build citation output

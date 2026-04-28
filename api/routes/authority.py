@@ -5,12 +5,15 @@ Full capability available in Verixia v0.2.
 """
 
 import hashlib
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from typing import Optional
 from api.auth import require_api_key
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class AuthorityRequest(BaseModel):
@@ -40,8 +43,10 @@ class AuthorityResponse(BaseModel):
 
 
 @router.post("/v1/authority", response_model=AuthorityResponse)
+@limiter.limit("30/minute")
 async def authority_audit(
-    request: AuthorityRequest,
+    request: Request,
+    body: AuthorityRequest,
     key_data: dict = Depends(require_api_key)
 ):
     """
@@ -54,22 +59,22 @@ async def authority_audit(
     Full endpoint active in Verixia v0.2.
     """
     audit_id = hashlib.sha256(
-        f"{request.instrument}{request.enactment_date}".encode()
+        f"{body.instrument}{body.enactment_date}".encode()
     ).hexdigest()[:16]
 
     return AuthorityResponse(
         audit_id         = audit_id,
-        instrument       = request.instrument,
-        instrument_type  = request.instrument_type,
+        instrument       = body.instrument,
+        instrument_type  = body.instrument_type,
         status           = "pending",
         integration      = "tenaxeia_stub",
         schema_version   = "1.0",
 
         audit_results    = None,
 
-        audit_depth      = request.audit_depth or "standard",
-        jurisdiction     = request.jurisdiction,
-        enactment_date   = request.enactment_date,
+        audit_depth      = body.audit_depth or "standard",
+        jurisdiction     = body.jurisdiction,
+        enactment_date   = body.enactment_date,
         message          = (
 "Tenaxeia integration coming in Verixia v0.2. Contact ContinuumCoreDev for details."
         )
