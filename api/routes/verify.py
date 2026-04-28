@@ -40,6 +40,7 @@ class CitationOut(BaseModel):
     section_label:  str
     text_excerpt:   str
     stance_score:   float
+    case_name:      str = ""
 
 
 class VerifyResponse(BaseModel):
@@ -155,6 +156,7 @@ async def verify_claim(request: VerifyRequest, key_data: dict = Depends(require_
             section_label  = c.section_label,
             text_excerpt   = c.text_excerpt,
             stance_score   = c.stance_score,
+            case_name      = getattr(c, "case_name", ""),
         )
 
     return VerifyResponse(

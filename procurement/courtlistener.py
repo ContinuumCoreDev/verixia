@@ -113,8 +113,15 @@ def build_verixia_doc(result: dict) -> dict:
         cites.extend(opinion.get("cites", []))
 
     # Use cluster_id as our primary identifier
-    cluster_id = result.get("cluster_id", "unknown")
-    doc_id     = f"cl_{cluster_id}"
+    cluster_id   = result.get("cluster_id", "unknown")
+    doc_id       = f"cl_{cluster_id}"
+
+    # Extract case name from absolute_url
+    # e.g. /opinion/88271/ducat-v-chicago/ -> Ducat V Chicago
+    import re as _re
+    _url       = result.get("absolute_url", "")
+    _match     = _re.search(r"/opinion/\d+/([^/]+)/", _url)
+    case_name  = _match.group(1).replace("-", " ").title() if _match else ""
 
     # Extract citation — v4 returns a list
     citations = result.get("citation", [])
@@ -140,6 +147,7 @@ def build_verixia_doc(result: dict) -> dict:
         "cites":            cites,          # raw citation IDs for graph traversal
         "raw_text":         opinion_text.strip(),
         "source_url":       f"https://www.courtlistener.com{result.get('absolute_url', '')}",
+        "case_name":        case_name,
         "raw_path":         None,
         "parse_status":     "ok" if opinion_text.strip() else "empty",
         "error_notes":      "" if opinion_text.strip() else "No opinion text in result",

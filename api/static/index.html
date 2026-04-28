@@ -501,13 +501,15 @@ function scoreColor(score) {
 function renderCitation(c, contra = false) {
   return `
     <div class="citation ${contra ? 'contra' : ''}">
+      <div style="font-weight:600;font-size:14px;color:#0D1B3E;margin-bottom:4px;">
+        ${c.case_name || c.doc_id}
+      </div>
       <div class="citation-meta">
         <span>${c.doc_id}</span>
         <span>${c.source}</span>
         <span>${c.doc_type}</span>
         ${c.published_date ? `<span>${c.published_date}</span>` : ''}
         <span>score: ${c.stance_score.toFixed(4)}</span>
-        ${c.section_label ? `<span>${c.section_label}</span>` : ''}
       </div>
       <div class="citation-text">${c.text_excerpt}</div>
     </div>`;

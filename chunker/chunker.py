@@ -59,6 +59,7 @@ class Chunk:
     published_date: Optional[str]   # for temporal constraint layer
     section_label:  str = ""        # detected section heading if any
     chunk_role:     str = "UNKNOWN"  # structural role in document
+    case_name:      str = ""          # human-readable case name
 
 
 def _count_tokens(text: str) -> int:
@@ -248,6 +249,7 @@ def chunk_document(doc: dict) -> list[Chunk]:
             published_date = pub_date,
             section_label  = section_label,
             chunk_role     = chunk_role,
+            case_name      = doc.get("case_name", ""),
         ))
 
     logger.info(

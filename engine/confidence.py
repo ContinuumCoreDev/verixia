@@ -58,6 +58,7 @@ class Citation:
     text_excerpt:   str       # first 300 chars
     stance_score:   float
     chunk_role:     str = "UNKNOWN"
+    case_name:      str = ""
 
 
 @dataclass
@@ -114,6 +115,7 @@ def _build_citation(result: StanceResult, chunk_payload: dict) -> Citation:
         text_excerpt   = result.text_snippet[:300],
         stance_score   = result.weighted_score,
         chunk_role     = chunk_payload.get("chunk_role", "UNKNOWN"),
+        case_name      = chunk_payload.get("case_name", ""),
     )
 
 
